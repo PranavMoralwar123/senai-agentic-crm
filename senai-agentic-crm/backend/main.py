@@ -16,3 +16,8 @@ app.include_router(contact_router)
 from api.rag import router as rag_router
 
 app.include_router(rag_router)
+from api.agent import router as agent_router
+
+app.include_router(agent_router)
+from api.actions import router as actions_router
+app.include_router(actions_router)

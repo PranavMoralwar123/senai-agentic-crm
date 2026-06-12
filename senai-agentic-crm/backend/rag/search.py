@@ -18,3 +18,14 @@ if __name__ == "__main__":
     )
 
     print(result)
+def get_top_policy(query):
+
+    results = search_documents(query)
+
+    return {
+        "source":
+            results["metadatas"][0][0]["source"],
+
+        "content":
+            results["documents"][0][0]
+    }
