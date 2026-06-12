@@ -13,3 +13,6 @@ app.include_router(ingest_router)
 from api.threads import router as thread_router
 app.include_router(thread_router)
 app.include_router(contact_router)
+from api.rag import router as rag_router
+
+app.include_router(rag_router)

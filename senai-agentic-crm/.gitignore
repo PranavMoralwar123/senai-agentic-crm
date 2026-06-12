@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual Environments
+venv/
+backend/venv/
+
+# ChromaDB
+backend/chroma_db/
+
+# Environment Variables
+.env
+
+# IDE
+.vscode/
+.idea/
