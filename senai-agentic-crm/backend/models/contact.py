@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Float
 
 from database.base import Base
+
 
 class Contact(Base):
     __tablename__ = "contacts"
@@ -13,4 +14,8 @@ class Contact(Base):
 
     company = Column(String)
 
-    status = Column(String)
+    status = Column(String, default="Active")
+
+    account_value = Column(Float, default=0)
+
+    churn_risk_score = Column(Float, default=0)
