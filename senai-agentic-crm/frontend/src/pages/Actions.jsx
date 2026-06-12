@@ -1,27 +1,45 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import ListToolbar from "../components/ListToolbar";
 import { getActions } from "../services/api";
+import { actionBadgeClass } from "../utils/badges";
+import { filterBySearch, sortByField, uniqueValues } from "../utils/filters";
+import { formatDate, formatRelative, truncate } from "../utils/format";
 
-function formatDate(value) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString();
-}
-
-function actionBadgeClass(actionType) {
-  const type = (actionType || "").toLowerCase();
-  if (type.includes("escalat")) return "bg-danger";
-  if (type.includes("reply") || type.includes("respond")) return "bg-success";
-  if (type.includes("follow")) return "bg-info text-dark";
-  return "bg-secondary";
-}
+const SORT_OPTIONS = [
+  { value: "timestamp-desc", label: "Newest first" },
+  { value: "timestamp-asc", label: "Oldest first" },
+  { value: "sender-asc", label: "Sender A–Z" },
+  { value: "action_type-asc", label: "Action type" },
+];
 
 function Actions() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [actions, setActions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [sort, setSort] = useState("timestamp-desc");
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
     loadActions();
   }, []);
+
+  useEffect(() => {
+    const param = searchParams.get("search") || "";
+    if (param) setSearch(param);
+  }, [searchParams]);
+
+  const handleSearchChange = (value) => {
+    setSearch(value);
+    if (value) {
+      setSearchParams({ search: value });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   const loadActions = async () => {
     setLoading(true);
@@ -38,6 +56,17 @@ function Actions() {
     }
   };
 
+  const actionTypes = useMemo(() => uniqueValues(actions, "action_type"), [actions]);
+
+  const filtered = useMemo(() => {
+    let result = filterBySearch(actions, search, ["sender", "action_type", "reasoning"]);
+    if (typeFilter) {
+      result = result.filter((a) => a.action_type === typeFilter);
+    }
+    const [field, direction] = sort.split("-");
+    return sortByField(result, field, direction);
+  }, [actions, search, typeFilter, sort]);
+
   if (loading) {
     return (
       <div className="container py-5 text-center">
@@ -50,9 +79,11 @@ function Actions() {
 
   return (
     <div className="container py-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="mb-0">Agent Actions</h2>
-        <span className="badge bg-secondary">{actions.length} total</span>
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={loadActions}>
+          Refresh
+        </button>
       </div>
 
       {error && (
@@ -61,10 +92,28 @@ function Actions() {
         </div>
       )}
 
+      <ListToolbar
+        search={search}
+        onSearchChange={handleSearchChange}
+        searchPlaceholder="Search sender, action, or reasoning…"
+        filterValue={typeFilter}
+        onFilterChange={setTypeFilter}
+        filterOptions={actionTypes}
+        filterLabel="Action type"
+        sortValue={sort}
+        onSortChange={setSort}
+        sortOptions={SORT_OPTIONS}
+        count={filtered.length}
+      />
+
       <div className="card shadow-sm">
         <div className="card-body p-0">
-          {actions.length === 0 ? (
-            <p className="text-muted mb-0 p-4">No agent actions recorded yet.</p>
+          {filtered.length === 0 ? (
+            <p className="text-muted mb-0 p-4">
+              {actions.length === 0
+                ? "No agent actions recorded yet."
+                : "No actions match your filters."}
+            </p>
           ) : (
             <div className="table-responsive">
               <table className="table table-hover mb-0 align-middle">
@@ -75,21 +124,54 @@ function Actions() {
                     <th>Action Type</th>
                     <th>Reasoning</th>
                     <th>Timestamp</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {actions.map((action) => (
-                    <tr key={action.id}>
-                      <td>{action.id}</td>
-                      <td>{action.sender}</td>
-                      <td>
-                        <span className={`badge ${actionBadgeClass(action.action_type)}`}>
-                          {action.action_type}
-                        </span>
-                      </td>
-                      <td className="text-truncate-cell">{action.reasoning}</td>
-                      <td className="text-nowrap">{formatDate(action.timestamp)}</td>
-                    </tr>
+                  {filtered.map((action) => (
+                    <Fragment key={action.id}>
+                      <tr>
+                        <td className="text-muted">#{action.id}</td>
+                        <td>
+                          <Link to={`/contacts?search=${encodeURIComponent(action.sender)}`}>
+                            {action.sender}
+                          </Link>
+                        </td>
+                        <td>
+                          <span className={`badge ${actionBadgeClass(action.action_type)}`}>
+                            {action.action_type}
+                          </span>
+                        </td>
+                        <td className="text-truncate-cell" title={action.reasoning}>
+                          {truncate(action.reasoning, 70)}
+                        </td>
+                        <td className="text-nowrap" title={formatDate(action.timestamp)}>
+                          {formatRelative(action.timestamp)}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-secondary"
+                            onClick={() =>
+                              setExpandedId((id) => (id === action.id ? null : action.id))
+                            }
+                          >
+                            {expandedId === action.id ? "Hide" : "Details"}
+                          </button>
+                        </td>
+                      </tr>
+                      {expandedId === action.id && (
+                        <tr>
+                          <td colSpan={6} className="bg-light">
+                            <strong>Full reasoning:</strong>
+                            <p className="mb-1 mt-2">{action.reasoning}</p>
+                            <small className="text-muted">
+                              Recorded {formatDate(action.timestamp)}
+                            </small>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>

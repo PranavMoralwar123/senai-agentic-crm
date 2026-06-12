@@ -2,6 +2,8 @@ import { NavLink } from "react-router-dom";
 
 const links = [
   { to: "/", label: "Dashboard", end: true },
+  { to: "/inbox", label: "Inbox" },
+  { to: "/new", label: "New Inquiry" },
   { to: "/contacts", label: "Contacts" },
   { to: "/actions", label: "Actions" },
   { to: "/responses", label: "Responses" },
@@ -14,7 +16,7 @@ function Navbar() {
         <NavLink className="navbar-brand fw-semibold" to="/">
           SenAI Agentic CRM
         </NavLink>
-        <div className="navbar-nav ms-auto flex-row gap-1">
+        <div className="navbar-nav ms-auto flex-row flex-wrap gap-1">
           {links.map(({ to, label, end }) => (
             <NavLink
               key={to}

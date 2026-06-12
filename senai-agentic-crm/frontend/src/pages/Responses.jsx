@@ -1,20 +1,45 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import ListToolbar from "../components/ListToolbar";
 import { getResponses } from "../services/api";
+import { actionBadgeClass } from "../utils/badges";
+import { filterBySearch, sortByField, uniqueValues } from "../utils/filters";
+import { formatDate, formatRelative, truncate } from "../utils/format";
 
-function formatDate(value) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString();
-}
+const SORT_OPTIONS = [
+  { value: "created_at-desc", label: "Newest first" },
+  { value: "created_at-asc", label: "Oldest first" },
+  { value: "sender-asc", label: "Sender A–Z" },
+];
 
 function Responses() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [actionFilter, setActionFilter] = useState("");
+  const [sort, setSort] = useState("created_at-desc");
   const [expandedId, setExpandedId] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     loadResponses();
   }, []);
+
+  useEffect(() => {
+    const param = searchParams.get("search") || "";
+    if (param) setSearch(param);
+  }, [searchParams]);
+
+  const handleSearchChange = (value) => {
+    setSearch(value);
+    if (value) {
+      setSearchParams({ search: value });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   const loadResponses = async () => {
     setLoading(true);
@@ -31,8 +56,30 @@ function Responses() {
     }
   };
 
-  const toggleExpand = (id) => {
-    setExpandedId((current) => (current === id ? null : id));
+  const actionTypes = useMemo(() => uniqueValues(responses, "action"), [responses]);
+
+  const filtered = useMemo(() => {
+    let result = filterBySearch(responses, search, [
+      "sender",
+      "query",
+      "action",
+      "response_text",
+    ]);
+    if (actionFilter) {
+      result = result.filter((r) => r.action === actionFilter);
+    }
+    const [field, direction] = sort.split("-");
+    return sortByField(result, field, direction);
+  }, [responses, search, actionFilter, sort]);
+
+  const copyResponse = async (item) => {
+    try {
+      await navigator.clipboard.writeText(item.response_text);
+      setCopiedId(item.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      /* clipboard unavailable */
+    }
   };
 
   if (loading) {
@@ -47,9 +94,11 @@ function Responses() {
 
   return (
     <div className="container py-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="mb-0">Generated Responses</h2>
-        <span className="badge bg-secondary">{responses.length} total</span>
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={loadResponses}>
+          Refresh
+        </button>
       </div>
 
       {error && (
@@ -58,10 +107,28 @@ function Responses() {
         </div>
       )}
 
+      <ListToolbar
+        search={search}
+        onSearchChange={handleSearchChange}
+        searchPlaceholder="Search sender, query, or response…"
+        filterValue={actionFilter}
+        onFilterChange={setActionFilter}
+        filterOptions={actionTypes}
+        filterLabel="Action"
+        sortValue={sort}
+        onSortChange={setSort}
+        sortOptions={SORT_OPTIONS}
+        count={filtered.length}
+      />
+
       <div className="card shadow-sm">
         <div className="card-body p-0">
-          {responses.length === 0 ? (
-            <p className="text-muted mb-0 p-4">No generated responses yet.</p>
+          {filtered.length === 0 ? (
+            <p className="text-muted mb-0 p-4">
+              {responses.length === 0
+                ? "No generated responses yet."
+                : "No responses match your filters."}
+            </p>
           ) : (
             <div className="table-responsive">
               <table className="table table-hover mb-0 align-middle">
@@ -76,31 +143,59 @@ function Responses() {
                   </tr>
                 </thead>
                 <tbody>
-                  {responses.map((item) => (
+                  {filtered.map((item) => (
                     <Fragment key={item.id}>
                       <tr>
-                        <td>{item.id}</td>
-                        <td>{item.sender}</td>
-                        <td className="text-truncate-cell">{item.query}</td>
+                        <td className="text-muted">#{item.id}</td>
                         <td>
-                          <span className="badge bg-primary">{item.action}</span>
+                          <Link to={`/contacts?search=${encodeURIComponent(item.sender)}`}>
+                            {item.sender}
+                          </Link>
                         </td>
-                        <td className="text-nowrap">{formatDate(item.created_at)}</td>
+                        <td className="text-truncate-cell" title={item.query}>
+                          {truncate(item.query, 60)}
+                        </td>
                         <td>
+                          <span className={`badge ${actionBadgeClass(item.action)}`}>
+                            {item.action}
+                          </span>
+                        </td>
+                        <td className="text-nowrap" title={formatDate(item.created_at)}>
+                          {formatRelative(item.created_at)}
+                        </td>
+                        <td className="text-nowrap">
                           <button
                             type="button"
-                            className="btn btn-sm btn-outline-secondary"
-                            onClick={() => toggleExpand(item.id)}
+                            className="btn btn-sm btn-outline-secondary me-1"
+                            onClick={() =>
+                              setExpandedId((id) => (id === item.id ? null : item.id))
+                            }
                           >
                             {expandedId === item.id ? "Hide" : "View"}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => copyResponse(item)}
+                          >
+                            {copiedId === item.id ? "Copied!" : "Copy"}
                           </button>
                         </td>
                       </tr>
                       {expandedId === item.id && (
                         <tr>
                           <td colSpan={6} className="bg-light">
-                            <strong>Response:</strong>
-                            <p className="mb-0 mt-2 response-text">{item.response_text}</p>
+                            <div className="mb-3">
+                              <strong>Customer query:</strong>
+                              <p className="mb-0 mt-1 response-text">{item.query}</p>
+                            </div>
+                            <div>
+                              <strong>Generated response:</strong>
+                              <p className="mb-0 mt-1 response-text">{item.response_text}</p>
+                            </div>
+                            <small className="text-muted d-block mt-2">
+                              Created {formatDate(item.created_at)}
+                            </small>
                           </td>
                         </tr>
                       )}

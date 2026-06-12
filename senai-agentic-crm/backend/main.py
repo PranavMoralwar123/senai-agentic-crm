@@ -23,6 +23,8 @@ from api.actions import router as actions_router
 app.include_router(actions_router)
 from api.responses import router as responses_router
 app.include_router(responses_router)
+from api.emails import router as emails_router
+app.include_router(emails_router)
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
