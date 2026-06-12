@@ -7,6 +7,13 @@ from models.contact import Contact
 router = APIRouter(prefix="/contacts")
 
 
+@router.get("/")
+def get_contacts(
+    db: Session = Depends(get_db)
+):
+    return db.query(Contact).all()
+
+
 @router.get("/{email}")
 def get_contact(
     email: str,
