@@ -21,3 +21,5 @@ from api.agent import router as agent_router
 app.include_router(agent_router)
 from api.actions import router as actions_router
 app.include_router(actions_router)
+from api.responses import router as responses_router
+app.include_router(responses_router)

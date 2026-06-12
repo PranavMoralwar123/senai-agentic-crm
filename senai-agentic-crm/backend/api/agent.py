@@ -5,6 +5,8 @@ from database.dependencies import get_db
 from services.ai_service import build_context, make_decision
 from services.action_service import log_action
 from services.response_service import generate_response
+from services.response_log_service import save_response
+from services.llm_service import generate_ai_response
 router = APIRouter(prefix="/agent")
 
 
@@ -25,9 +27,18 @@ def analyze_email(
         context=context,
         query=query
     )
-    draft_response = generate_response(
-    context=context,
-    decision=agent_decision
+    draft_response = generate_ai_response(
+    customer_query=query,
+    policy_context=context["knowledge_base"]["content"],
+    customer_email=sender,
+    decision=agent_decision["action"]
+    )
+    save_response(
+    db=db,
+    sender=sender,
+    query=query,
+    action=agent_decision["action"],
+    response_text=draft_response
     )
     response = {
     "customer_exists": context["email_count"] > 0,
