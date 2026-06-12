@@ -31,7 +31,11 @@ def analyze_email(
     customer_query=query,
     policy_context=context["knowledge_base"]["content"],
     customer_email=sender,
-    decision=agent_decision["action"]
+    decision=agent_decision["action"],
+    interaction_count=context["email_count"],
+    classification=context["classification"]["category"],
+    urgency=context["classification"]["urgency"],
+    requires_human=context["classification"]["requires_human"]
     )
     save_response(
     db=db,
@@ -44,6 +48,7 @@ def analyze_email(
     "customer_exists": context["email_count"] > 0,
     "interaction_count": context["email_count"],
     "recommended_action": agent_decision["action"],
+    "confidence": agent_decision["confidence"],
     "reason": agent_decision["reason"],
     "draft_response": draft_response,
     "context": context

@@ -66,45 +66,54 @@ def make_decision(context, query):
     if classification["requires_human"]:
         return {
             "action": "Escalate To Human",
-            "reason": "Email requires human review"
+            "reason": "Email requires human review",
+            "confidence": 95
         }
 
     if classification["category"] == "Security":
         return {
             "action": "Escalate Security Team",
-            "reason": "Security incident detected"
+            "reason": "Security incident detected",
+            "confidence": 92
         }
 
     if classification["urgency"] == "High":
         return {
             "action": "Prioritize Ticket",
-            "reason": "High urgency customer request"
+            "reason": "High urgency customer request",
+            "confidence": 88
         }
+
     if "ransomware" in query or "btc" in query:
         return {
             "action": "Escalate Security Team",
-            "reason": "Potential security threat detected"
+            "reason": "Potential security threat detected",
+            "confidence": 90
         }
 
     elif "refund" in query:
         return {
             "action": "Send Refund Policy",
-            "reason": "Customer is requesting refund information"
+            "reason": "Customer is requesting refund information",
+            "confidence": 85
         }
 
     elif "pricing" in query or "discount" in query:
         return {
             "action": "Send Pricing Information",
-            "reason": "Customer is asking about pricing"
+            "reason": "Customer is asking about pricing",
+            "confidence": 85
         }
 
     elif context["email_count"] > 5:
         return {
             "action": "Prioritize Customer",
-            "reason": "High interaction customer"
+            "reason": "High interaction customer",
+            "confidence": 80
         }
 
     return {
         "action": "Review Knowledge Base",
-        "reason": "General inquiry"
+        "reason": "General inquiry",
+        "confidence": 70
     }
